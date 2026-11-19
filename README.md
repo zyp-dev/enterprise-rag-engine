@@ -1,4 +1,4 @@
-# 企业级 RAG 知识引擎（项目 7）
+# 企业级 RAG 知识引擎
 
 > 一个能扛住生产压力的 **SaaS 级智能知识问答平台**：员工（或客服、游客）用大白话提问，系统从知识库中**混合检索**出相关文档片段，再让大模型**基于检索结果**生成有据可查的回答，全程由 **治理层**（Failover / 限流熔断 / Token 计量 / RBAC）和 **评测层**（RAGAS）保驾护航，并用 **SkyWalking + Prometheus/Grafana** 实现全链路可观测。
 
@@ -15,9 +15,8 @@
 - [5. 快速开始（完整启动手册）](#5-快速开始完整启动手册)
 - [6. 各服务详解与核心代码](#6-各服务详解与核心代码)
 - [7. 遇到的问题与解决方案（踩坑记录）](#7-遇到的问题与解决方案踩坑记录)
-- [8. 答辩演示脚本](#8-答辩演示脚本)
-- [9. 安全说明](#9-安全说明)
-- [10. 后续改进方向](#10-后续改进方向)
+- [8. 安全说明](#8-安全说明)
+- [9. 后续改进方向](#9-后续改进方向)
 
 ---
 
@@ -452,24 +451,11 @@ OpenAIEmbeddings(..., check_embedding_ctx_length=False)  # 千问只收字符串
 
 ---
 
-## 8. 答辩演示脚本
-
-1. **开场**（一句话主线）：这是一个能上生产的企业知识问答平台：文档管理 → 检索增强问答 → 治理 → 评测四个闭环，全程可观测。
-2. **上传文档**：前端用 admin 上传一篇新攻略（或 txt/pdf 文件）→ 观察 search-service 控制台"已消费文档已索引事件" → 3 秒后新文档可检索（Kafka 事件驱动）。
-3. **智能问答**："去西藏要准备什么证件？" → 展示答案 + 引用上下文（含三种得分）+ Token 用量。
-4. **检索调试**：展示混合检索三种得分，讲解加权融合。
-5. **质量评测**：一键评测 → 30~60 秒后三个分数卡片（faithfulness / answer_relevancy / context_precision），讲解低分含义。
-6. **RBAC 演示**：角色切到 guest 再上传 → 403 红条。
-7. **可观测**：SkyWalking 拓扑图（gateway → ai-service → search-service 调用线）+ Grafana LLM 耗时曲线。
-8. **主动反思**（加分）：向量目前内存存储应换 Milvus/ES；Kafka 消费应做幂等+死信队列；RBAC 角色表应入库；分块可换语义分块。
-
----
-
-## 9. 安全说明
+## 8. 安全说明
 
 ⚠️ **密钥一律不写死在代码里**，通过环境变量注入（本仓库已按此规范清理，不含任何真实 Key）。
 
-### 9.1 需要配置的环境变量
+### 8.1 需要配置的环境变量
 
 | 环境变量 | 用途 | 所属服务 |
 |---------|------|---------|
@@ -478,7 +464,7 @@ OpenAIEmbeddings(..., check_embedding_ctx_length=False)  # 千问只收字符串
 | `LLM_API_KEY` | 裁判 LLM Key（评测） | metric-service（Python） |
 | `EMBEDDING_API_KEY` | 向量模型 Key（评测） | metric-service（Python） |
 
-### 9.2 Java 服务配置方法（IDEA）
+### 8.2 Java 服务配置方法（IDEA）
 
 Run → Edit Configurations → 选中服务的启动配置 → **Environment variables** 添加：
 
@@ -488,7 +474,7 @@ DEEPSEEK_API_KEY=sk-你的key;QWEN_API_KEY=sk-你的key
 
 （ai-service 加 DEEPSEEK_API_KEY；search-service 加 QWEN_API_KEY）
 
-### 9.3 Python 服务配置方法
+### 8.3 Python 服务配置方法
 
 ```bat
 set LLM_API_KEY=sk-你的key
@@ -496,14 +482,14 @@ set EMBEDDING_API_KEY=sk-你的key
 python api_server.py
 ```
 
-### 9.4 其他
+### 8.4 其他
 
 - MySQL 密码为本地开发库默认值（123456），生产环境务必修改。
 - 泄露过的 Key 请到对应平台重置。
 
 ---
 
-## 10. 后续改进方向
+## 9. 后续改进方向
 
 1. 向量索引换 **Milvus / Elasticsearch**（当前内存索引，重启重建）
 2. Kafka 消费端**幂等消费 + 死信队列**（当前 at-most-once + 手动 rebuild 兜底）
@@ -515,4 +501,4 @@ python api_server.py
 
 ---
 
-*项目 7 · 企业级 RAG 知识引擎 —— 架构层（微服务）+ 治理层 + 评测层 + 可观测性*
+*企业级 RAG 知识引擎 —— 架构层（微服务）+ 治理层 + 评测层 + 可观测性*
