@@ -1,0 +1,47 @@
+server:
+  port: 8083   # 按需求文档对齐：search-service = 8083
+
+spring:
+  application:
+    name: search-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+  # 项目7：search_db（分块表 doc_chunk）
+  datasource:
+    url: jdbc:mysql://localhost:3306/search_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  # 项目7：Kafka 消费者（消费 doc-service 发的「文档已索引」事件）
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: search-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# 向量模型：千问 OpenAI 兼容接口（和 metric-service 用的同一平台同一个 key）
+search:
+  embedding:
+    base-url: https://maas.qianwenaiapi.com/compatible-mode/v1
+    api-key: ${QWEN_API_KEY:}   # 密钥用环境变量注入（IDEA Run Config 里配），不写死在代码里
+    model: text-embedding-v4
+  top-k: 3             # 混合检索返回 Top-K 条上下文
+  keyword-weight: 0.4  # 关键词得分权重
+  vector-weight: 0.6   # 向量得分权重（语义相关通常更可信，权重给高一点）
+  kafka-topic: doc-indexed   # 消费 doc-service 的「文档已索引」事件
+  chunk-size: 400      # 分块大小（字符）
+  chunk-overlap: 50    # 分块重叠（字符）
+
+# 指标暴露（Prometheus 抓取用）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

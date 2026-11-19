@@ -1,0 +1,14 @@
+# Prometheus 配置：抓取各服务暴露的指标（第三章 + 项目7）
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "ai-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ['host.docker.internal:8081']  # ai-service（需求文档端口）
+
+  - job_name: "search-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ['host.docker.internal:8083']  # search-service（需求文档端口）

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业级 RAG 知识引擎</title>
+<style>
+  :root {
+    --primary: #1880BA;
+    --primary-dark: #12648f;
+    --bg: #f4f7fa;
+    --card: #ffffff;
+    --text: #2b3a47;
+    --muted: #7b8a97;
+    --border: #e3eaf1;
+    --danger: #d64545;
+    --success: #2e9e5b;
+    --warn: #c98a2d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, var(--primary), #0e5d8a);
+    color: #fff;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+  header .sub { font-size: 12px; opacity: .85; margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .role-select select {
+    padding: 6px 10px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer;
+  }
+  .role-select label { font-size: 12px; margin-right: 6px; opacity: .9; }
+  .badge {
+    background: rgba(255,255,255,.16); padding: 5px 12px; border-radius: 14px;
+    font-size: 12px; cursor: pointer; text-decoration: none; color: #fff; transition: .2s;
+  }
+  .badge:hover { background: rgba(255,255,255,.3); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 22px 16px 60px; }
+  nav.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  nav.tabs button {
+    border: none; background: #fff; color: var(--muted); padding: 10px 20px;
+    border-radius: 8px; font-size: 14px; cursor: pointer; transition: .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+  nav.tabs button.active { background: var(--primary); color: #fff; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card); border-radius: 10px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 16px;
+  }
+  .card h3 { font-size: 15px; margin-bottom: 12px; color: var(--primary-dark); }
+  textarea, input[type=text], input[type=file] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: inherit; margin-bottom: 10px;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  .row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 220px; }
+  button.primary {
+    background: var(--primary); color: #fff; border: none; padding: 10px 22px;
+    border-radius: 8px; font-size: 14px; cursor: pointer; transition: .2s;
+  }
+  button.primary:hover { background: var(--primary-dark); }
+  button.primary:disabled { background: #a9c4d5; cursor: not-allowed; }
+  button.small { padding: 6px 14px; font-size: 13px; }
+  .banner { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
+  .banner.err { display: block; background: #fdecec; color: var(--danger); border: 1px solid #f5c6c6; }
+  .banner.ok { display: block; background: #e8f6ee; color: var(--success); border: 1px solid #bfe6cd; }
+  .answer-box {
+    background: #f0f7fc; border: 1px solid #cfe4f2; border-radius: 8px;
+    padding: 14px 16px; font-size: 15px; line-height: 1.7; margin-bottom: 10px;
+  }
+  .meta { font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .ctx-item {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    font-size: 13px; line-height: 1.6;
+  }
+  .ctx-item .scores { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eef4f8; color: var(--muted);
+  }
+  .tag.kw { background: #fff3e0; color: #b06a00; }
+  .tag.vec { background: #e8f0fb; color: var(--primary-dark); }
+  .tag.total { background: #e6f4ec; color: var(--success); }
+  .score-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+  .score-card {
+    flex: 1; min-width: 150px; background: #f8fbfd; border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; text-align: center;
+  }
+  .score-card .val { font-size: 30px; font-weight: 700; color: var(--primary); }
+  .score-card .name { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .score-card .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
+    border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite;
+    vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .linkbar { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .linkbar a { color: var(--primary); }
+  .flow { font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .flow b { color: var(--primary-dark); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📚 企业级 RAG 知识引擎</h1>
+    <div class="sub">文档管理 · 混合检索 · RAG 问答 · 治理链 · RAGAS 评测 —— 项目 7</div>
+  </div>
+  <div class="header-right">
+    <div class="role-select">
+      <label>当前角色：</label>
+      <select id="roleSelect">
+        <option value="admin">admin（管理员）</option>
+        <option value="editor" selected>editor（编辑）</option>
+        <option value="guest">guest（访客）</option>
+      </select>
+    </div>
+    <a class="badge" href="http://localhost:18080" target="_blank">SkyWalking</a>
+    <a class="badge" href="http://localhost:3000" target="_blank">Grafana</a>
+    <a class="badge" href="http://localhost:9090" target="_blank">Prometheus</a>
+    <a class="badge" href="http://localhost:8848/nacos" target="_blank">Nacos</a>
+  </div>
+</header>
+
+<div class="container">
+  <nav class="tabs" id="tabs">
+    <button data-tab="qa" class="active">💬 智能问答</button>
+    <button data-tab="doc">📄 文档管理</button>
+    <button data-tab="search">🔍 检索调试</button>
+    <button data-tab="eval">🎯 质量评测</button>
+    <button data-tab="token">💰 Token 计量</button>
+  </nav>
+
+  <!-- ============ 智能问答 ============ -->
+  <div class="panel active" id="panel-qa">
+    <div class="card">
+      <h3>用大白话提问（RAG：检索企业文档 → 治理链生成）</h3>
+      <div class="banner err" id="qaErr"></div>
+      <div class="row">
+        <textarea id="qaQuery" placeholder="例如：去西藏要准备什么证件？">去西藏要准备什么证件？</textarea>
+        <button class="primary" id="qaBtn" style="flex:0 0 auto;">提问</button>
+      </div>
+      <div class="flow">
+        链路：<b>浏览器 → gateway(8080) → ai-service(编排) → search-service(混合检索) → Failover/限流熔断 → LLM</b>
+        （每个环节在 SkyWalking 里都能看到耗时）
+      </div>
+    </div>
+    <div class="card" id="qaResult" style="display:none;">
+      <h3>🤖 回答</h3>
+      <div class="answer-box" id="qaAnswer"></div>
+      <div class="meta" id="qaUsage"></div>
+      <h3 style="margin-top:14px;">📎 引用上下文（检索到的文档分块）</h3>
+      <div id="qaContexts"></div>
+    </div>
+  </div>
+
+  <!-- ============ 文档管理 ============ -->
+  <div class="panel" id="panel-doc">
+    <div class="card">
+      <h3>上传文档（解析 → 入库版本化 → Kafka 事件 → search-service 自动建索引）</h3>
+      <div class="banner err" id="docErr"></div>
+      <div class="banner ok" id="docOk"></div>
+      <div class="row">
+        <div>
+          <label style="font-size:13px;">标题</label>
+          <input type="text" id="docTitle" placeholder="如：日本关西赏樱攻略">
+        </div>
+        <div>
+          <label style="font-size:13px;">文档内容（粘贴文本）</label>
+          <textarea id="docContent" placeholder="粘贴文档正文……"></textarea>
+        </div>
+      </div>
+      <button class="primary" id="docUploadBtn">上传文本</button>
+      <span style="margin:0 10px;color:var(--muted);">或</span>
+      <input type="file" id="docFile" style="width:auto;display:inline-block;" accept=".txt,.md,.json,.pdf">
+      <button class="primary" id="docFileBtn">上传文件（txt/md/pdf）</button>
+      <div class="meta">
+        💡 上传需要 <b>document:write</b> 权限：admin / editor 可传；把角色切成 guest 再点上传，会看到 403（网关 RBAC 演示）
+      </div>
+    </div>
+    <div class="card">
+      <h3>索引维护</h3>
+      <button class="primary small" id="rebuildBtn">手动重建索引（兜底）</button>
+      <span class="meta" id="rebuildResult" style="margin-left:10px;"></span>
+    </div>
+  </div>
+
+  <!-- ============ 检索调试 ============ -->
+  <div class="panel" id="panel-search">
+    <div class="card">
+      <h3>混合检索调试（看每一块的三种得分）</h3>
+      <div class="banner err" id="searchErr"></div>
+      <div class="row">
+        <input type="text" id="searchQuery" placeholder="例如：泰国落地签要带多少钱" value="泰国落地签要带多少钱">
+        <button class="primary" id="searchBtn" style="flex:0 0 auto;">检索</button>
+      </div>
+      <div class="flow">总分 = <b>关键词得分 × 0.4</b> + <b>向量相似度 × 0.6</b>，按总分降序取 Top-3 分块</div>
+    </div>
+    <div class="card" id="searchResult" style="display:none;">
+      <h3>Top-K 分块结果</h3>
+      <div id="searchList"></div>
+    </div>
+  </div>
+
+  <!-- ============ 质量评测 ============ -->
+  <div class="panel" id="panel-eval">
+    <div class="card">
+      <h3>一键评测：跑真实 RAG → 异步提交 RAGAS 打分（约 30~60 秒）</h3>
+      <div class="banner err" id="evalErr"></div>
+      <div class="row">
+        <textarea id="evalQuery" placeholder="要评测的问题">去西藏要准备什么证件？</textarea>
+        <textarea id="evalGround" placeholder="参考答案（可选，填了才评 context_precision）">进藏需准备身份证；前往珠峰大本营、阿里、墨脱等边境地区需提前办理边防证</textarea>
+      </div>
+      <button class="primary" id="evalBtn">开始评测</button>
+      <div class="flow">
+        链路：<b>/ai/evaluate → 真实检索+生成 → 直连 metric-service(8090，不进 Nacos) → 裁判 LLM 后台打分 → 轮询结果</b>
+        （离线旁路：用户提问不会被评测阻塞）
+      </div>
+    </div>
+    <div class="card" id="evalResult" style="display:none;">
+      <h3>评测进度</h3>
+      <div id="evalProgress" class="meta">提交中…</div>
+      <div class="answer-box" id="evalAnswer" style="display:none;"></div>
+      <h3 style="margin-top:14px;">RAG Triad 分数（0~1，越高越好）</h3>
+      <div class="score-cards">
+        <div class="score-card"><div class="val" id="scFaith">-</div><div class="name">Faithfulness 忠实度</div><div class="hint">低 = 答案在编造（幻觉）</div></div>
+        <div class="score-card"><div class="val" id="scAnswer">-</div><div class="name">Answer Relevance 答案相关性</div><div class="hint">低 = 答非所问（生成跑偏）</div></div>
+        <div class="score-card"><div class="val" id="scContext">-</div><div class="name">Context Precision 检索精度</div><div class="hint">低 = 检索没召回相关内容</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Token 计量 ============ -->
+  <div class="panel" id="panel-token">
+    <div class="card">
+      <h3>Token 成本报表（Redis 存储，按供应商/租户统计）</h3>
+      <div class="banner err" id="tokenErr"></div>
+      <button class="primary" id="tokenBtn">查询成本报表</button>
+      <div id="tokenResult" style="margin-top:14px;"></div>
+      <div class="flow" style="margin-top:10px;">
+        💡 每次 LLM 调用成功后，Failover 组件会自动记录 prompt/completion tokens 到 Redis —— 这就是「治理层 · Token 计量」
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'http://localhost:8080';
+const roleSelect = document.getElementById('roleSelect');
+const headers = () => ({ 'Content-Type': 'application/json', 'X-User-Role': roleSelect.value });
+
+// ---------- Tab 切换 ----------
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+});
+
+function showBanner(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideBanner(id) { document.getElementById(id).style.display = 'none'; }
+function setLoading(btn, on, text) {
+  btn.disabled = on;
+  if (on) btn.innerHTML = '<span class="spinner"></span>' + (text || '处理中…');
+  else btn.textContent = text;
+}
+
+async function post(url, body, withRole = true) {
+  const resp = await fetch(BASE + url, {
+    method: 'POST',
+    headers: withRole ? headers() : { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || data.message || ('HTTP ' + resp.status));
+  return data;
+}
+
+// ---------- 智能问答 ----------
+document.getElementById('qaBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('qaBtn');
+  const query = document.getElementById('qaQuery').value.trim();
+  if (!query) return;
+  hideBanner('qaErr');
+  setLoading(btn, true, '思考中…');
+  try {
+    const r = await post('/ai/rag', { query });
+    document.getElementById('qaResult').style.display = 'block';
+    document.getElementById('qaAnswer').textContent = r.answer || '（无回答）';
+    document.getElementById('qaUsage').textContent =
+      'Token 用量：prompt ' + (r.usage?.promptTokens ?? '-') +
+      ' + completion ' + (r.usage?.completionTokens ?? '-') +
+      ' = ' + (r.usage?.totalTokens ?? '-') + '（已自动计入成本报表）';
+    const ctxDiv = document.getElementById('qaContexts');
+    ctxDiv.innerHTML = '';
+    (r.contexts || []).forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'ctx-item';
+      div.innerHTML = '<div>' + esc(c.content) + '</div>' +
+        '<div class="meta">文档#' + c.documentId + ' · 分块#' + c.chunkIndex + '</div>' +
+        '<div class="scores">' +
+        '<span class="tag kw">关键词 ' + c.keywordScore.toFixed(2) + '</span>' +
+        '<span class="tag vec">向量 ' + c.vectorScore.toFixed(2) + '</span>' +
+        '<span class="tag total">总分 ' + c.totalScore.toFixed(2) + '</span>' +
+        '</div>';
+      ctxDiv.appendChild(div);
+    });
+  } catch (e) {
+    showBanner('qaErr', '请求失败：' + e.message);
+  } finally {
+    setLoading(btn, false, '提问');
+  }
+});
+
+// ---------- 文档管理 ----------
+async function doUpload(formData) {
+  hideBanner('docErr'); hideBanner('docOk');
+  const btn1 = document.getElementById('docUploadBtn');
+  const btn2 = document.getElementById('docFileBtn');
+  const resp = await fetch(BASE + '/doc/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Role': roleSelect.value },
+    body: JSON.stringify(formData)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || data.message || ('HTTP ' + resp.status + '（可能是 RBAC 无权限）'));
+  return data;
+}
+document.getElementById('docUploadBtn').addEventListener('click', async () => {
+  const title = document.getElementById('docTitle').value.trim();
+  const content = document.getElementById('docContent').value.trim();
+  if (!content) { showBanner('docErr', '请先粘贴文档内容'); return; }
+  try {
+    const r = await doUpload({ title, content });
+    document.getElementById('docOk').textContent =
+      '✅ 上传成功！documentId=' + r.documentId + '，版本=' + r.version +
+      '，已发 Kafka 事件，几秒后自动建索引可检索。AI 分析：' + (r.reply || '');
+  } catch (e) { showBanner('docErr', '上传失败：' + e.message); }
+});
+document.getElementById('docFileBtn').addEventListener('click', async () => {
+  const file = document.getElementById('docFile').files[0];
+  if (!file) { showBanner('docErr', '请先选择文件'); return; }
+  hideBanner('docErr'); hideBanner('docOk');
+  const fd = new FormData();
+  fd.append('file', file);
+  const title = document.getElementById('docTitle').value.trim();
+  if (title) fd.append('title', title);
+  try {
+    const resp = await fetch(BASE + '/doc/upload/file', {
+      method: 'POST',
+      headers: { 'X-User-Role': roleSelect.value },
+      body: fd
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || data.message || ('HTTP ' + resp.status));
+    document.getElementById('docOk').textContent =
+      '✅ 文件解析并上传成功！documentId=' + data.documentId + '，版本=' + data.version;
+  } catch (e) { showBanner('docErr', '文件上传失败：' + e.message); }
+});
+document.getElementById('rebuildBtn').addEventListener('click', async () => {
+  try {
+    const r = await post('/search/index/rebuild', {}, false);
+    document.getElementById('rebuildResult').textContent = '✅ 已重建，共 ' + r.indexed + ' 个分块';
+  } catch (e) {
+    document.getElementById('rebuildResult').textContent = '重建失败：' + e.message;
+  }
+});
+
+// ---------- 检索调试 ----------
+document.getElementById('searchBtn').addEventListener('click', async () => {
+  const query = document.getElementById('searchQuery').value.trim();
+  if (!query) return;
+  hideBanner('searchErr');
+  try {
+    const r = await post('/search/search', { query });
+    document.getElementById('searchResult').style.display = 'block';
+    const list = document.getElementById('searchList');
+    list.innerHTML = '';
+    (r.contexts || []).forEach((c, i) => {
+      const div = document.createElement('div');
+      div.className = 'ctx-item';
+      div.innerHTML = '<b>#' + (i + 1) + ' 文档#' + c.documentId + ' · 分块#' + c.chunkIndex + '</b>' +
+        '<div style="margin-top:6px;">' + esc(c.content) + '</div>' +
+        '<div class="scores">' +
+        '<span class="tag kw">关键词 ' + c.keywordScore.toFixed(2) + '（权重0.4）</span>' +
+        '<span class="tag vec">向量 ' + c.vectorScore.toFixed(2) + '（权重0.6）</span>' +
+        '<span class="tag total">总分 ' + c.totalScore.toFixed(3) + '</span>' +
+        '</div>';
+      list.appendChild(div);
+    });
+    if (!(r.contexts || []).length) list.innerHTML = '<div class="meta">无结果（索引为空？先上传文档）</div>';
+  } catch (e) { showBanner('searchErr', '检索失败：' + e.message); }
+});
+
+// ---------- 质量评测 ----------
+let evalTimer = null;
+document.getElementById('evalBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('evalBtn');
+  const query = document.getElementById('evalQuery').value.trim();
+  if (!query) return;
+  hideBanner('evalErr');
+  const ground = document.getElementById('evalGround').value.trim();
+  setLoading(btn, true, '提交评测…');
+  try {
+    const r = await post('/ai/evaluate', { query, ground_truth: ground });
+    document.getElementById('evalResult').style.display = 'block';
+    document.getElementById('evalProgress').textContent = '⏳ 评测任务已提交（taskId=' + r.taskId + '），裁判 LLM 打分中，每 5 秒轮询一次…';
+    if (r.answer) {
+      const ab = document.getElementById('evalAnswer');
+      ab.style.display = 'block';
+      ab.textContent = '被评测的回答：' + r.answer;
+    }
+    startPolling(r.taskId);
+  } catch (e) {
+    showBanner('evalErr', '提交评测失败：' + e.message);
+    setLoading(btn, false, '开始评测');
+  }
+});
+function startPolling(taskId) {
+  let tries = 0;
+  clearInterval(evalTimer);
+  evalTimer = setInterval(async () => {
+    tries++;
+    try {
+      const resp = await fetch(BASE + '/ai/evaluate/' + taskId);
+      const data = await resp.json();
+      if (data.status === 'done' && data.scores) {
+        clearInterval(evalTimer);
+        document.getElementById('evalProgress').textContent = '✅ 评测完成（共轮询 ' + tries + ' 次）';
+        document.getElementById('scFaith').textContent = fmt(data.scores.faithfulness);
+        document.getElementById('scAnswer').textContent = fmt(data.scores.answer_relevancy);
+        document.getElementById('scContext').textContent = fmt(data.scores.context_precision);
+        document.getElementById('evalBtn').disabled = false;
+        document.getElementById('evalBtn').textContent = '开始评测';
+      } else if (data.status === 'error') {
+        clearInterval(evalTimer);
+        document.getElementById('evalProgress').textContent = '❌ 评测出错：' + (data.message || '');
+        document.getElementById('evalBtn').disabled = false;
+        document.getElementById('evalBtn').textContent = '开始评测';
+      } else if (tries > 24) {
+        clearInterval(evalTimer);
+        document.getElementById('evalProgress').textContent = '⏰ 超时（2 分钟），可能还在排队，稍后再查';
+        document.getElementById('evalBtn').disabled = false;
+        document.getElementById('evalBtn').textContent = '开始评测';
+      } else {
+        document.getElementById('evalProgress').textContent =
+          '⏳ 打分中… 第 ' + tries + ' 次轮询（每 5 秒一次，约 30~60 秒出结果）';
+      }
+    } catch (e) {
+      document.getElementById('evalProgress').textContent = '轮询失败：' + e.message;
+    }
+  }, 5000);
+}
+function fmt(v) { return (v === null || v === undefined || v !== v) ? '—' : v.toFixed(3); }
+
+// ---------- Token 计量 ----------
+document.getElementById('tokenBtn').addEventListener('click', async () => {
+  hideBanner('tokenErr');
+  try {
+    const resp = await fetch(BASE + '/ai/token/cost-report');
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+    const div = document.getElementById('tokenResult');
+    const rows = Object.entries(data);
+    if (!rows.length) { div.innerHTML = '<div class="meta">暂无数据（先问答几次）</div>'; return; }
+    div.innerHTML = '<table><tr><th>供应商</th><th>累计费用（演示计价）</th></tr>' +
+      rows.map(([k, v]) => '<tr><td>' + esc(k) + '</td><td>' + esc(String(v)) + '</td></tr>').join('') +
+      '</table>';
+  } catch (e) { showBanner('tokenErr', '查询失败：' + e.message); }
+});
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

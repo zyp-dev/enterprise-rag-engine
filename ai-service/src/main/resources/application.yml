@@ -1,0 +1,68 @@
+server:
+  port: 8081   # 按需求文档对齐：ai-service = 8081
+
+spring:
+  application:
+    name: ai-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+llm:
+  provider:
+    deepseek:
+      base-url: https://api.deepseek.com/v1
+      api-key: ${DEEPSEEK_API_KEY:}   # 密钥用环境变量注入（IDEA Run Config 里配），不写死在代码里
+      model: deepseek-chat
+    ollama:
+      base-url: http://localhost:11434
+      model: qwen2.5:7b
+
+# 注意这里，resilience4j 是和 spring、llm 平级的！
+resilience4j:
+  # 1. 限流配置
+  ratelimiter:
+    instances:
+      llmRateLimiter:
+        limit-for-period: 2          # 为了方便测试，改成了每秒2个
+        limit-refresh-period: 1s
+        timeout-duration: 0ms
+
+  # 2. 熔断配置
+  circuitbreaker:
+    instances:
+      llmBreaker:
+        failure-rate-threshold: 50
+        sliding-window-size: 10
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+
+  # 3. 重试配置
+  retry:
+    instances:
+      llmRetry:
+        max-attempts: 3
+        wait-duration: 500ms
+
+  spring:
+    application:
+      name: ai-service
+    data:
+      redis:
+        host: localhost
+        port: 6379
+
+# 项目7：metric-service（Python 离线评测服务）：HTTP 直连，不进 Nacos
+metric:
+  base-url: http://localhost:8090
+
+# 第三章：暴露 Prometheus 指标端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus    # 暴露 /actuator/prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}   # 每个指标打上应用名标签，Grafana 里好区分

@@ -1,0 +1,31 @@
+server:
+  port: 8080   # 按需求文档对齐：gateway = 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    gateway:
+      # 前端页面跨域访问（课程演示放开全部；生产要限定具体域名）
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: doc-route
+          uri: lb://doc-service
+          predicates:
+            - Path=/doc/**
+        - id: ai-route
+          uri: lb://ai-service
+          predicates:
+            - Path=/ai/**
+        - id: search-route
+          uri: lb://search-service
+          predicates:
+            - Path=/search/**
