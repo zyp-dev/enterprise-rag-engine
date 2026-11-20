@@ -1,0 +1,43 @@
+# ConfigMap：非敏感配置（中间件地址、模型名等）
+# 说明：假设 Nacos/MySQL/Redis/Kafka 已在集群内（或通过 ExternalName/地址可达）。
+# 若中间件跑在宿主机，把地址改成宿主机的可达 IP。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-engine-config
+  namespace: rag-engine
+data:
+  # 服务注册发现
+  NACOS_ADDR: "nacos:8848"
+  # 中间件地址
+  MYSQL_HOST: "mysql"
+  MYSQL_PORT: "3306"
+  MYSQL_USER: "root"
+  MYSQL_DOC_DB: "doc_db"
+  MYSQL_SEARCH_DB: "search_db"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP: "kafka:9092"
+  # LLM 供应商（非敏感部分）
+  DEEPSEEK_BASE_URL: "https://api.deepseek.com/v1"
+  DEEPSEEK_MODEL: "deepseek-chat"
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "qwen2.5:7b"
+  QWEN_BASE_URL: "https://maas.qianwenaiapi.com/compatible-mode/v1"
+  QWEN_MODEL: "qwen-plus"
+  EMBEDDING_MODEL: "text-embedding-v4"
+  # 文档索引事件主题
+  DOC_KAFKA_TOPIC: "doc-indexed"
+---
+# Secret：敏感配置（用 stringData 明文写，kubectl 会自动 base64 编码）
+# ⚠️ 提交到 Git 前把占位符换成真实值；或改用 K8s Secret 管理工具（如 SealedSecret）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rag-engine-secret
+  namespace: rag-engine
+type: Opaque
+stringData:
+  DEEPSEEK_API_KEY: "sk-你的-deepseek-key"
+  QWEN_API_KEY: "sk-你的-qwen-key"
+  MYSQL_PASSWORD: "你的-mysql-密码"

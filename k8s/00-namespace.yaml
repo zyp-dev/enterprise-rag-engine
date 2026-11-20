@@ -1,0 +1,5 @@
+# 命名空间：把项目所有资源隔离在一个命名空间里
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rag-engine

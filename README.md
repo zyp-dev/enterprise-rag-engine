@@ -17,6 +17,7 @@
 - [7. 遇到的问题与解决方案（踩坑记录）](#7-遇到的问题与解决方案踩坑记录)
 - [8. 安全说明](#8-安全说明)
 - [9. 后续改进方向](#9-后续改进方向)
+- [10. 部署（K8s + CI/CD）](#10-部署k8s--cicd)
 
 ---
 
@@ -497,8 +498,41 @@ python api_server.py
 4. 分块升级为**语义分块**（按段落/标题边界）
 5. 多租户**租户上下文传递与隔离**（当前 tenant_id 固定）
 6. 前端接**登录态**，接口加真实鉴权
-7. K8s + CI/CD（下一阶段）
 
 ---
 
-*企业级 RAG 知识引擎 —— 架构层（微服务）+ 治理层 + 评测层 + 可观测性*
+## 10. 部署（K8s + CI/CD）
+
+> 说明：已提供完整的 Docker 镜像 + K8s 清单 + CI/CD 流水线，可直接部署到 Minikube / 云 K8s。本机开发环境未起真实集群（用 Docker Compose 即可）。
+
+### 10.1 Docker 镜像
+
+每个服务目录下都有多阶段构建的 `Dockerfile`：
+
+```bash
+# 项目根目录执行（4 个 Java 服务 + 1 个 Python 服务）
+docker build -f ai-service/Dockerfile -t <你的账号>/ai-service:latest .
+docker build -f doc-service/Dockerfile -t <你的账号>/doc-service:latest .
+docker build -f search-service/Dockerfile -t <你的账号>/search-service:latest .
+docker build -f gateway/Dockerfile -t <你的账号>/gateway:latest .
+docker build -f metric-service/Dockerfile -t <你的账号>/metric-service:latest .
+```
+
+### 10.2 K8s 清单（k8s/ 目录）
+
+```bash
+kubectl apply -f k8s/00-namespace.yaml   # 命名空间
+kubectl apply -f k8s/01-config.yaml      # ConfigMap + Secret（先填真实密钥）
+kubectl apply -f k8s/02-apps.yaml        # 5 个 Deployment（ai-service 2 副本演示扩容）
+kubectl apply -f k8s/03-services.yaml    # Service（gateway 以 NodePort 30080 暴露）
+```
+
+**部署前提**：集群内有 Nacos / MySQL / Redis / Kafka（可用 `01-config.yaml` 里的地址按需调整）。中间件也可先用本机 Docker Compose 那套，把 ConfigMap 地址改成宿主机 IP。
+
+### 10.3 CI/CD（GitHub Actions）
+
+`.github/workflows/ci.yml`：每次 push / PR 自动执行 `mvn package` 并上传 jar 产物；文件中附带了**构建并推送 Docker 镜像**的模板（取消注释 + 配置 `DOCKER_USERNAME`/`DOCKER_PASSWORD` 两个 Secret 即可启用）。
+
+---
+
+*企业级 RAG 知识引擎 —— 架构层（微服务）+ 治理层 + 评测层 + 可观测性 + 部署层*

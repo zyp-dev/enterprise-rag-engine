@@ -1,0 +1,123 @@
+# 5 个服务的 Deployment（镜像需先用 Dockerfile 构建并推送到镜像仓库）
+# 构建命令示例（在项目根目录）：
+#   docker build -f ai-service/Dockerfile -t zyp-dev/ai-service:latest .
+#   ... 其余同理 ...
+#   docker push zyp-dev/ai-service:latest
+# 镜像名里的 zyp-dev 请替换为你自己的 Docker Hub 账号。
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: rag-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway }
+    spec:
+      containers:
+        - name: gateway
+          image: zyp-dev/gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: NACOS_ADDR } } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: rag-engine
+spec:
+  replicas: 2   # 多实例，演示负载均衡/独立扩容
+  selector:
+    matchLabels: { app: ai-service }
+  template:
+    metadata:
+      labels: { app: ai-service }
+    spec:
+      containers:
+        - name: ai-service
+          image: zyp-dev/ai-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8081 }]
+          env:
+            - { name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: NACOS_ADDR } } }
+            - { name: SPRING_DATA_REDIS_HOST, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: REDIS_HOST } } }
+            - { name: DEEPSEEK_API_KEY, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: DEEPSEEK_API_KEY } } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doc-service
+  namespace: rag-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: doc-service }
+  template:
+    metadata:
+      labels: { app: doc-service }
+    spec:
+      containers:
+        - name: doc-service
+          image: zyp-dev/doc-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8082 }]
+          env:
+            - { name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: NACOS_ADDR } } }
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:mysql://mysql:3306/doc_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true" }
+            - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: MYSQL_USER } } }
+            - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: MYSQL_PASSWORD } } }
+            - { name: SPRING_KAFKA_BOOTSTRAP_SERVERS, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: KAFKA_BOOTSTRAP } } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: rag-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: search-service }
+  template:
+    metadata:
+      labels: { app: search-service }
+    spec:
+      containers:
+        - name: search-service
+          image: zyp-dev/search-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8083 }]
+          env:
+            - { name: SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: NACOS_ADDR } } }
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:mysql://mysql:3306/search_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true" }
+            - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: MYSQL_USER } } }
+            - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: MYSQL_PASSWORD } } }
+            - { name: SPRING_KAFKA_BOOTSTRAP_SERVERS, valueFrom: { configMapKeyRef: { name: rag-engine-config, key: KAFKA_BOOTSTRAP } } }
+            - { name: QWEN_API_KEY, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: QWEN_API_KEY } } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metric-service
+  namespace: rag-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: metric-service }
+  template:
+    metadata:
+      labels: { app: metric-service }
+    spec:
+      containers:
+        - name: metric-service
+          image: zyp-dev/metric-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8090 }]
+          env:
+            - { name: LLM_API_KEY, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: QWEN_API_KEY } } }
+            - { name: EMBEDDING_API_KEY, valueFrom: { secretKeyRef: { name: rag-engine-secret, key: QWEN_API_KEY } } }
